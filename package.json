@@ -1,0 +1,33 @@
+{
+  "name": "geryon",
+  "version": "0.0.0",
+  "description": "Malbolge VM in javascript",
+  "main": "gerion.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Tarabyte/geryon.git"
+  },
+  "keywords": [
+    "Malbolge",
+    "esoteric",
+    "VM",
+    "javascript"
+  ],
+  "author": "tarabyte",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Tarabyte/geryon/issues"
+  },
+  "homepage": "https://github.com/Tarabyte/geryon",
+  "devDependencies": {
+    "gulp": "^3.6.2",
+    "gulp-uglify": "^0.2.1",
+    "gulp-size": "^0.3.0",
+    "gulp-qunit": "^0.3.3",
+    "gulp-jshint": "^1.5.5",
+    "gulp-rename": "^1.2.0"
+  }
+}
