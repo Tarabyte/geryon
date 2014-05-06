@@ -27,6 +27,7 @@ test('Registers', function() {
 });
 
 test('Memory', function() {
+    expect(4);
     var g = Γ(),
         memory = g.memory,
         length = Math.pow(3, 10);
@@ -45,5 +46,20 @@ test('Memory', function() {
     } catch (e) {
         ok(true, 'Memory is readonly');
     }
+    
+});
+
+test('Encrypt', function() {
+    var g = new Γ();
+    
+    equal(typeof g.encrypt, 'function', 'encrypt function is defined');
+    
+    var original = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~".split(''),
+        encrypted = "5z]&gqtyfr$(we4{WP)H-Zn,[%\\3dL+Q;>U!pJS72FhOA1CB6v^=I_0/8|jsb9m<.TVac`uY*MK'X~xDl}REokN:#?G\"i@".split('');
+    
+    original.forEach(function(letter, idx) {
+        equal(g.encrypt(letter), encrypted[idx], letter + ' encrypted ok');    
+    });
+    
     
 });
