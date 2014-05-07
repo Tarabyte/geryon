@@ -60,6 +60,25 @@ test('Encrypt', function() {
     original.forEach(function(letter, idx) {
         equal(g.encrypt(letter), encrypted[idx], letter + ' encrypted ok');    
     });
+
+});
+
+function trit (str) {
+    return parseInt(str, 3);    
+};
+
+test('crz', function() {
+    var g = new Γ();
     
+    equal(typeof g.crz, 'function', 'crz function is defined');
     
+    equal(g.crz(trit('0001112220'), trit('0120120120')), trit('1001022211'), 'ok for table');
+});
+
+test('rotr', function() {
+    var g = new Γ();
+    
+    equal(typeof g.rotr, 'function', 'rotr function is defined');
+    
+    equal(g.rotr(trit('0001112221')), trit('1000111222'), '0001112221 --> 1000111222');
 });
