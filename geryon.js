@@ -6,7 +6,9 @@
         eof = len - 1,
         proto = G.prototype,
         start = 33,
+        last = 126,
         empty = '',
+        max = len - 1,
         encrypted = "5z]&gqtyfr$(we4{WP)H-Zn,[%\\3dL+Q;>U!pJS72FhOA1CB6v^=I_0/8|jsb9m<.TVac`uY*MK'X~xDl}REokN:#?G\"i@".split(empty),
         makeArray = function(){
             return Array.apply(null, new Array(word));
@@ -61,18 +63,163 @@
             return pows.reduce(function(c, base, i) {
                 return c + base * crzTable[a[i]][b[i]];
             }, 0);
+        },
+        rotr = function(a) {
+            a = toTritArray(a);   
+            a.unshift(a.pop());
+        
+            return pows.reduce(function(c, base, i){
+                return c + base * a[i];
+            }, 0);
+        },
+        fuQ = function(){
+            var dfd = {},
+                q = {},
+                callbacks = [],
+                fired = false,
+                last,
+                noop = function(){},
+                callbackIndex = 0,
+                run = function(func) {
+                    var out = func(last);
+                    if(out && out.then) { //is a promise;
+                        out.then(function(data){
+                            last = data;
+                            callbackIndex++;
+                            runCallbacks();
+                        });
+                        return false;
+                    }
+                    last = out;
+                    callbackIndex++;
+                    return true;
+                },
+                runCallbacks = function() {
+                    var func;
+                    while((func = callbacks[callbackIndex]) && run(func)){}
+                    if(callbackIndex === callbacks.length) {
+                        fired = true;    
+                    }
+                },
+                fire = function(arg) {
+                    last = arg;
+                    fire = noop;
+                    runCallbacks();
+                    return q;
+                },
+                then = function(func){
+                    callbacks.push(func);
+                    if(fired) {runCallbacks();}
+                    return q;
+                };
+
+            Object.defineProperties(dfd, {
+                q: { get: function(){return q;}},
+                fire: { get: function(){return fire;}}
+            });
+
+            Object.defineProperties(q, {
+                then: {get: function(){return then;}}
+            });
+            return dfd;
         };
     
     function G(options) {
-        var a, c, d, memory, input;
-        if(!(this instanceof G)) {
+        var a, c, d, memory, running, step, loaded,
+                instructions, warn, output, input, me = this;
+        if(!(me instanceof G)) {
             return new G(options);
         }
         
-        a = c = d = 0;
         options = options || {};
         
-        memory = new Array(len);
+        warn = options.warn || function(str) {
+            console.warn(str);    
+        };
+        
+        output = options.output || function(str) {
+            console.info(str);    
+        };
+        
+        input = options.input;
+        
+        function init() {                
+            a = c = d = step = 0;
+            running = loaded = false;
+            memory = new Array(len);
+        }
+        
+        init();
+        
+        function later() {
+            return fuQ().fire();    
+        }
+        
+        instructions = {
+            4: function() {
+                c = memory[d];
+                c %= max;
+                return later();
+            },
+            5: function() {
+                if(!input) {
+                    warn("No stdin is specified");
+                    running = false;
+                    return later();
+                }
+                else {
+                    return input().then(function(symbol){
+                        me.input(symbol);    
+                    });
+                }
+            },
+            23: function() {
+                output(me.atA());
+                return later();
+            },
+            39: function() {
+                if(c === d) {
+                    warn("rotr is unsafe since c and d pointing the same address.");
+                }
+                a = memory[d] = rotr(memory[d]);
+                return later();
+            },
+            40: function() {
+                d = memory[d];
+                d %= max; 
+                return later();
+            },
+            62: function() {
+                if(c === d) {
+                    warn("crz is unsafe since c and d pointing the same address.");
+                }
+                a = memory[d] = crz(memory[d], a);
+                return later();
+            },
+            81: function() {
+                running = false;
+                return later();
+            }
+        };
+        
+        function notAnInstruction() {
+            running = false;
+            return later();
+        }
+        
+        function noop() {
+            return later();    
+        }
+        
+        function getInstruction(){
+            var code = memory[c];
+            if(code < start || code > last) {
+                return notAnInstruction;    
+            }
+            
+            return instructions[getCode(code, c)] || noop;
+            
+        }
         
         Object.defineProperties(this, {
             a: {
@@ -96,6 +243,24 @@
             memory: {
                 get: function() {
                     return memory.slice(0);    
+                }
+            },
+            
+            step: {
+                get: function() {
+                    return step;
+                }
+            },
+            
+            running: {
+                get: function() {
+                    return running;
+                }
+            },
+            
+            loaded: {
+                get: function() {
+                    return loaded;    
                 }
             }
         });  
@@ -139,6 +304,8 @@
                 throw new Error('Input program is too long. Length: ' + commands.length);    
             }
             
+            init(); //kill previous steps etc.
+            
             commands.forEach(function(command, position) { //copy program to memory
                 memory[position] = command;    
             });
@@ -146,6 +313,7 @@
             //implementation specific behaviour for 1 char programs. 
             //http://stackoverflow.com/questions/23524597
             if(commands.length == 1) {
+                warn("Undefined behaviour for 1 command programs");
                 memory[1] = 0;
             }
             
@@ -156,6 +324,69 @@
             for(; i < len; ++i) { //fill memory using crz.
                 memory[i] = prev = crz(preprev, preprev = prev);
             }
+            
+            
+            loaded = true;
+        };
+        
+        /**
+         * Run current program
+         */
+        this.run = function(progress, end) {
+            if(!me.loaded) {
+                throw new Error('No program was loaded.');       
+            }
+            
+            running = true;
+            
+            function halt() {
+                if(end) {
+                    end(me);
+                }
+            }
+            
+            function report() {
+                if(progress) {
+                    progress(me);
+                }
+            }
+            
+            function next() {
+                if(running) {
+                    step++;
+                    c++;
+                    d++;
+                    c %= max;
+                    d %= max;
+                    
+                }
+            }
+            
+            function trash() {
+                var trashed;
+                if(running) {
+                    trashed = me.encrypt(memory[c]);
+                    
+                    if(trashed) {
+                        memory[c] = trashed.charCodeAt(0);
+                        return;
+                    }
+                    
+                    warn("Unable to encrypt command @c: " + memory[c]);
+                    running = false;    
+                }
+            }
+            
+            function tick() {
+                if(running) { 
+                    getInstruction()().then(report).then(trash).then(next).then(tick);
+                }
+                else {
+                    halt();    
+                }
+            }
+            
+            tick();            
         };
     }
     
@@ -163,7 +394,7 @@
      * Encrypt a symbol specified.
      */
     proto.encrypt = function(symbol) {
-        return encrypted[(empty + symbol).charCodeAt(0) - start];    
+        return encrypted[toNumber(symbol) - start];    
     };
     
     /**
@@ -175,14 +406,7 @@
     /**
      * Tritwise rotate right.
      */
-    proto.rotr = function(a) {
-        a = toTritArray(a);   
-        a.unshift(a.pop());
-        
-        return pows.reduce(function(c, base, i){
-            return c + base * a[i];
-        }, 0);
-    };
+    proto.rotr = rotr;
     
     /**
      * Get value at A register.

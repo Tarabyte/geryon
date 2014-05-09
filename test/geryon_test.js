@@ -163,9 +163,9 @@ test('load', function() {
     //@see http://stackoverflow.com/questions/23524597
     equal(memory[1], 0, 'Implementations specific');
     
-    equal(memory.filter(function(current, idx) {
+    ok(memory.every(function(current, idx) {
         return idx < 2 || current == g.crz(memory[idx-2], memory[idx-1]);
-    }).length, memory.length, 'memory is f*cked up');
+    }), 'memory is f*cked up');
 });
 
 test('load should skip spaces', function() {
@@ -257,4 +257,208 @@ test('load should throw on large inputs', function() {
     }, /too long/, 'throw on programs larger than mem capacity');
     
     
+});
+
+test('running, step, loaded', function() {
+    var g = Γ();
+    
+    equal(g.running, false, 'is  not running');
+    
+    equal(g.step, 0, 'no steps performed');
+    
+    equal(g.loaded, false, 'is not loaded');
+    
+    g.load(g.denormalize(randomMnemonic()));
+    
+    equal(g.loaded, true, 'is loaded');
+});
+
+test('run', function() {
+    expect(15);
+    var g = Γ();
+    
+    equal(typeof g.run, 'function', 'run is defined');
+    
+    throws(function() {
+        g.run();    
+    }, /No program was loaded/, 'is not loaded');
+    
+    g.load(g.denormalize('ov'));
+    
+    var memory = g.memory;
+    
+    var called = 0,
+        old, 
+        progress = function(m) {
+            ++called;
+            if(called == 1) {
+                equal(m.running, true, 'is running');
+                equal(m.c, 0, 'c == 0');
+                equal(m.d, 0, 'd == 0');
+                equal(m.step, 0, 'first step');
+                old = m.memory[0];
+            }
+            else if (called == 2) {
+                equal(m.running, false, 'is not running');
+                equal(m.c, 1, 'c == 1');
+                equal(m.d, 1, 'd == 1');
+                equal(m.step, 1, 'second step');
+                notEqual(old, m.memory[0], 'trashed');
+                equal(m.memory[0], g.encrypt(old).charCodeAt(0), 'memory was trashed');
+            }
+            else {
+                ok(false, 'should not get here');    
+            }
+        }, end = function(m) {
+            equal(m.running, false, 'is not running');
+            equal(m.c, 1, 'c == 1');
+            equal(m.d, 1, 'd == 1');
+        
+        };
+    
+    g.run(progress, end);
+});
+
+test('warn', function() {
+    var g = Γ({
+        warn: function(message) {
+            ok(message, 'called with message: ' + message);    
+        }
+    });
+    
+    g.load(g.denormalize("j"));
+});
+
+test('command load', function(){
+    var g = Γ();
+    
+    g.load(g.denormalize('j'));
+    
+    var d = 40;
+    g.run(function(m) {
+        equal(m.d, d++, 'got d');
+    });
+});
+
+test('command jump', function(){
+    var g = Γ();
+    
+    g.load(g.denormalize('i'));
+    
+    g.run(function(m){
+        equal(m.c, 98, 'got c');
+    });
+});
+
+test('command rotr', function() {
+    var g = Γ();
+    
+    g.load(g.denormalize('*'));
+    
+    var old = g.memory[0];
+    
+    g.run(function(m){
+        equal(m.a, g.rotr(old), 'got a');
+    });
+});
+
+test('command crz', function() {
+    var g = Γ();
+    
+    g.load(g.denormalize("p"));
+    
+    var d = g.memory[0];
+    
+    g.run(function(m) {
+        var crz = g.crz(d, 0);
+        equal(m.a, crz, 'a was crazied');
+        equal(m.memory[0], crz, 'memory is filled with value');
+    });
+    
+});
+
+test('command print', function() {
+    var g = Γ({
+        output: function(str) {
+            equal(str, g.atA(), 'got a as output');    
+        }
+    });
+    
+    g.load(g.denormalize("/")); 
+    
+    g.run();
+});
+
+asyncTest('command input', function() {
+    var symbol ="a", g = Γ({
+        input: function() {
+            ok(true, 'input function was called');
+            return later(500, symbol);        
+        }
+    }),fuQ = function(){
+            var dfd = {},
+                q = {},
+                callbacks = [],
+                fired = false,
+                last,
+                noop = function(){},
+                callbackIndex = 0,
+                run = function(func) {
+                    var out = func(last);
+                    if(out && out.then) { //is a promise;
+                        out.then(function(data){
+                            last = data;
+                            callbackIndex++;
+                            runCallbacks();
+                        });
+                        return false;
+                    }
+                    last = out;
+                    callbackIndex++;
+                    return true;
+                },
+                runCallbacks = function() {
+                    var func;
+                    while((func = callbacks[callbackIndex]) && run(func)){}
+                    if(callbackIndex === callbacks.length) {
+                        fired = true;    
+                    }
+                },
+                fire = function(arg) {
+                    last = arg;
+                    fire = noop;
+                    runCallbacks();
+                    return q;
+                },
+                then = function(func){
+                    callbacks.push(func);
+                    if(fired) {runCallbacks();}
+                    return q;
+                };
+
+            Object.defineProperties(dfd, {
+                q: { get: function(){return q;}},
+                fire: { get: function(){return fire;}}
+            });
+
+            Object.defineProperties(q, {
+                then: {get: function(){return then;}}
+            });
+            return dfd;
+        }, later = function(timeout, data) {
+            var dfd = fuQ();
+            
+            setTimeout(function() {
+                dfd.fire(data);
+            }, timeout);
+            
+            return dfd.q;
+            
+        };
+    
+    g.load(g.denormalize("<"));
+    
+    g.run(function(){
+        equal(g.atA(), symbol, 'got symbol');
+    }, start);
 });
