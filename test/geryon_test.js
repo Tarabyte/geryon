@@ -15,19 +15,10 @@ test('Registers', function() {
     registers.forEach(function(item) {
         ok(item in g, item + ' register is defined');
         equal(g[item], 0, 'initial value is 0');    
-        
-        try {
-            g[item] = "somevalue";
-        }
-        catch (e) {        
-            equal(g[item], 0, 'readonly');    
-        }
-        
     });    
 });
 
 test('Memory', function() {
-    expect(4);
     var g = Γ(),
         memory = g.memory,
         length = Math.pow(3, 10);
@@ -40,12 +31,6 @@ test('Memory', function() {
     
     memory = g.memory;
     equal(memory.length, length, 'Memory is immutable');
-    
-    try {
-        g.memory = [];
-    } catch (e) {
-        ok(true, 'Memory is readonly');
-    }
     
 });
 
@@ -146,8 +131,6 @@ test('load', function() {
         g.load(code);
         ok(true, code + ' loaded ok');
     });
-    
-    
     
     g.load(helloWorld1);
     
@@ -273,7 +256,8 @@ test('running, step, loaded', function() {
     equal(g.loaded, true, 'is loaded');
 });
 
-test('run', function() {
+
+asyncTest('run', function() {
     expect(15);
     var g = Γ();
     
@@ -313,11 +297,14 @@ test('run', function() {
             equal(m.running, false, 'is not running');
             equal(m.c, 1, 'c == 1');
             equal(m.d, 1, 'd == 1');
+            start();
         
         };
     
     g.run(progress, end);
 });
+
+
 
 test('warn', function() {
     var g = Γ({
@@ -329,7 +316,7 @@ test('warn', function() {
     g.load(g.denormalize("j"));
 });
 
-test('command load', function(){
+asyncTest('command load', function(){
     var g = Γ();
     
     g.load(g.denormalize('j'));
@@ -337,20 +324,20 @@ test('command load', function(){
     var d = 40;
     g.run(function(m) {
         equal(m.d, d++, 'got d');
-    });
+    }, start);
 });
 
-test('command jump', function(){
+asyncTest('command jump', function(){
     var g = Γ();
     
     g.load(g.denormalize('i'));
     
     g.run(function(m){
         equal(m.c, 98, 'got c');
-    });
+    }, start);
 });
 
-test('command rotr', function() {
+asyncTest('command rotr', function() {
     var g = Γ();
     
     g.load(g.denormalize('*'));
@@ -359,10 +346,10 @@ test('command rotr', function() {
     
     g.run(function(m){
         equal(m.a, g.rotr(old), 'got a');
-    });
+    }, start);
 });
 
-test('command crz', function() {
+asyncTest('command crz', function() {
     var g = Γ();
     
     g.load(g.denormalize("p"));
@@ -373,11 +360,11 @@ test('command crz', function() {
         var crz = g.crz(d, 0);
         equal(m.a, crz, 'a was crazied');
         equal(m.memory[0], crz, 'memory is filled with value');
-    });
+    }, start);
     
 });
 
-test('command print', function() {
+asyncTest('command print', function() {
     var g = Γ({
         output: function(str) {
             equal(str, g.atA(), 'got a as output');    
@@ -386,7 +373,7 @@ test('command print', function() {
     
     g.load(g.denormalize("/")); 
     
-    g.run();
+    g.run(null, start);
 });
 
 asyncTest('command input', function() {

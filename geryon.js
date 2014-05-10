@@ -1,3 +1,4 @@
+/*global setTimeout*/
 (function(global, Math){
     "use strict";
     var word = 10,
@@ -10,6 +11,7 @@
         empty = '',
         max = len - 1,
         encrypted = "5z]&gqtyfr$(we4{WP)H-Zn,[%\\3dL+Q;>U!pJS72FhOA1CB6v^=I_0/8|jsb9m<.TVac`uY*MK'X~xDl}REokN:#?G\"i@".split(empty),
+        alphabetLen = 94,
         makeArray = function(){
             return Array.apply(null, new Array(word));
         },
@@ -32,7 +34,6 @@
             68: 'o',
             81: 'v'
         },
-        alphabetLen = 94,
         isCommand = function(op, idx) {
             return getCode(op, idx) in instructions;    
         }, 
@@ -94,12 +95,10 @@
                     callbackIndex++;
                     return true;
                 },
-                runCallbacks = function() {
-                    var func;
+                runCallbacks = function(func) {
                     while((func = callbacks[callbackIndex]) && run(func)){}
-                    if(callbackIndex === callbacks.length) {
-                        fired = true;    
-                    }
+
+                    fired = fired || (callbackIndex == callbacks.length);
                 },
                 fire = function(arg) {
                     last = arg;
@@ -107,19 +106,30 @@
                     runCallbacks();
                     return q;
                 },
-                then = function(func){
-                    callbacks.push(func);
+                then = function(){
+                    callbacks.push.apply(callbacks, arguments);
                     if(fired) {runCallbacks();}
                     return q;
                 };
-
+            
             Object.defineProperties(dfd, {
-                q: { get: function(){return q;}},
-                fire: { get: function(){return fire;}}
+                q: {
+                    get: function(){
+                        return q;
+                    }    
+                },
+                
+                fire: {
+                    get: function() {
+                        return fire;    
+                    }
+                }
             });
-
-            Object.defineProperties(q, {
-                then: {get: function(){return then;}}
+            
+            Object.defineProperty(q, 'then', {
+                get: function() {
+                    return then;    
+                }
             });
             return dfd;
         };
@@ -151,8 +161,14 @@
         
         init();
         
-        function later() {
-            return fuQ().fire();    
+        function later(data) {
+            var dfd = fuQ();
+            
+            setTimeout(function() {
+                dfd.fire(data);    
+            }, 13);
+            
+            return dfd.q;    
         }
         
         instructions = {
@@ -162,15 +178,21 @@
                 return later();
             },
             5: function() {
+                var dfd;
                 if(!input) {
                     warn("No stdin is specified");
                     running = false;
                     return later();
                 }
                 else {
-                    return input().then(function(symbol){
-                        me.input(symbol);    
+                    dfd = fuQ();
+                    
+                    input().then(function(symbol){
+                        me.input(symbol);
+                        dfd.fire();
                     });
+                    
+                    return dfd.q;
                 }
             },
             23: function() {
@@ -357,8 +379,7 @@
                     c++;
                     d++;
                     c %= max;
-                    d %= max;
-                    
+                    d %= max; 
                 }
             }
             
@@ -378,8 +399,8 @@
             }
             
             function tick() {
-                if(running) { 
-                    getInstruction()().then(report).then(trash).then(next).then(tick);
+                if(running) {
+                    getInstruction()().then(report, trash, next, tick);
                 }
                 else {
                     halt();    
