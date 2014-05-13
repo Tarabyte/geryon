@@ -136,7 +136,7 @@
     
     function G(options) {
         var a, c, d, memory, running, step, loaded,
-                instructions, warn, output, input, me = this;
+                instructions, warn, output, input, me = this, tmp;
         if(!(me instanceof G)) {
             return new G(options);
         }
@@ -187,7 +187,7 @@
                 else {
                     dfd = fuQ();
                     
-                    input().then(function(symbol){
+                    input(function(symbol){
                         me.input(symbol);
                         dfd.fire();
                     });
@@ -223,6 +223,12 @@
                 return later();
             }
         };
+        
+        if(options.invertInOut) { //Special flag to make / to be input and < to be out following reference implementation.
+            tmp = instructions[23];
+            instructions[23] = instructions[5];
+            instructions[5] = tmp;            
+        }
         
         function notAnInstruction() {
             running = false;

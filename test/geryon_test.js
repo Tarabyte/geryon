@@ -171,6 +171,10 @@ function randomCommand() {
 function randomMnemonic() {
     return mnemonics[Math.random()*mnemonics.length|0];
 }
+
+    var cat = "(aBA@?>=<;:9876543210/.-,JH)('&%$#\"!~}|{zy\\J6utsrq\nponmlkjihgJ%dcba`_^]\\[ZYXWVUTSRQPONMLKJIHGF('C%$$^\nK~<;4987654321a/.-,\\*)\nj\n!~%|{zya}|{zyxwvutsrqSonmlO\njLhg`edcba`_^]\\[ZYXWV8TSRQ4\nONM/KJIBGFE>CBA@?>=<;{9876w\n43210/.-m+*)('&%$#\"!~}|{zy\\\nwvunslqponmlkjihgfedcEa`_^A\n\\>ZYXWPUTSRQPONMLKJIH*FEDC&\nA@?>=<;:9876543210/.-m+*)(i\n&%$#\"!~}|{zyxwvutsrqpRnmlkN\nihgfedcba`_^]\\[ZYXWVU7SRQP3\nNMLKJIHGFEDCBA@?>=<;:z8765v\n3210/.-,+*)('&%$#\"!~}_{zyx[\nvutsrqjonmlejihgfedcba`_^]@\n[ZYXWVUTSRo",
+        normCat = "jiooooooooooooooooooooooo<ioooooooooooooooj/iooooo\noooooooooojiooooooooooooooooooooooooooooooo**o**j<\nv*oopooooooooo/oooo/oo\nj\nppopppp*ooooooooooooo*ooooj\no*oopoooooooooooooooo*ooooj\nooo*ooopooopooooooooo*ooooj\noooooooo*oooooooooooooooooj\nooopopooooooooooooooo*ooooj\no*oooopoooooooooooooo*ooooj\nooooooooooooooooooooo*ooooj\nooooooooooooooooooooo*ooooj\nooooooooooooooooooooo*ooooj\nooooooooooooooooooooo*ooooj\nooooooooooooooooooooo*ooooj\noooooopoooopooooooooooooooj\nooooooooooi";
+
 test('normalize|denormalize', function() {
     var g = Γ();
     
@@ -208,9 +212,6 @@ test('normalize|denormalize', function() {
     var normalized = g.normalize(denormalized);
     
     equal(normalized, code, 'normalized code equals to original');
-    
-    var cat = "(aBA@?>=<;:9876543210/.-,JH)('&%$#\"!~}|{zy\\J6utsrq\nponmlkjihgJ%dcba`_^]\\[ZYXWVUTSRQPONMLKJIHGF('C%$$^\nK~<;4987654321a/.-,\\*)\nj\n!~%|{zya}|{zyxwvutsrqSonmlO\njLhg`edcba`_^]\\[ZYXWV8TSRQ4\nONM/KJIBGFE>CBA@?>=<;{9876w\n43210/.-m+*)('&%$#\"!~}|{zy\\\nwvunslqponmlkjihgfedcEa`_^A\n\\>ZYXWPUTSRQPONMLKJIH*FEDC&\nA@?>=<;:9876543210/.-m+*)(i\n&%$#\"!~}|{zyxwvutsrqpRnmlkN\nihgfedcba`_^]\\[ZYXWVU7SRQP3\nNMLKJIHGFEDCBA@?>=<;:z8765v\n3210/.-,+*)('&%$#\"!~}_{zyx[\nvutsrqjonmlejihgfedcba`_^]@\n[ZYXWVUTSRo",
-        normCat = "jiooooooooooooooooooooooo<ioooooooooooooooj/iooooo\noooooooooojiooooooooooooooooooooooooooooooo**o**j<\nv*oopooooooooo/oooo/oo\nj\nppopppp*ooooooooooooo*ooooj\no*oopoooooooooooooooo*ooooj\nooo*ooopooopooooooooo*ooooj\noooooooo*oooooooooooooooooj\nooopopooooooooooooooo*ooooj\no*oooopoooooooooooooo*ooooj\nooooooooooooooooooooo*ooooj\nooooooooooooooooooooo*ooooj\nooooooooooooooooooooo*ooooj\nooooooooooooooooooooo*ooooj\nooooooooooooooooooooo*ooooj\noooooopoooopooooooooooooooj\nooooooooooi";
     
     g.load(cat);
     
@@ -378,70 +379,11 @@ asyncTest('command print', function() {
 
 asyncTest('command input', function() {
     var symbol ="a", g = Γ({
-        input: function() {
+        input: function(func) {
             ok(true, 'input function was called');
-            return later(500, symbol);        
+            func(symbol);  
         }
-    }),fuQ = function(){
-            var dfd = {},
-                q = {},
-                callbacks = [],
-                fired = false,
-                last,
-                noop = function(){},
-                callbackIndex = 0,
-                run = function(func) {
-                    var out = func(last);
-                    if(out && out.then) { //is a promise;
-                        out.then(function(data){
-                            last = data;
-                            callbackIndex++;
-                            runCallbacks();
-                        });
-                        return false;
-                    }
-                    last = out;
-                    callbackIndex++;
-                    return true;
-                },
-                runCallbacks = function() {
-                    var func;
-                    while((func = callbacks[callbackIndex]) && run(func)){}
-                    if(callbackIndex === callbacks.length) {
-                        fired = true;    
-                    }
-                },
-                fire = function(arg) {
-                    last = arg;
-                    fire = noop;
-                    runCallbacks();
-                    return q;
-                },
-                then = function(func){
-                    callbacks.push(func);
-                    if(fired) {runCallbacks();}
-                    return q;
-                };
-
-            Object.defineProperties(dfd, {
-                q: { get: function(){return q;}},
-                fire: { get: function(){return fire;}}
-            });
-
-            Object.defineProperties(q, {
-                then: {get: function(){return then;}}
-            });
-            return dfd;
-        }, later = function(timeout, data) {
-            var dfd = fuQ();
-            
-            setTimeout(function() {
-                dfd.fire(data);
-            }, timeout);
-            
-            return dfd.q;
-            
-        };
+    });
     
     g.load(g.denormalize("<"));
     
@@ -449,3 +391,67 @@ asyncTest('command input', function() {
         equal(g.atA(), symbol, 'got symbol');
     }, start);
 });
+
+
+asyncTest('Hello world', function() {
+    var buff = [],
+        g =  Γ({
+            output: function(s) {
+                buff.push(s);         
+            },
+            input: function(f){
+                console.log('Input was called');
+                f(-1);
+            },
+            invertInOut: true
+        });
+    
+    g.load(helloWorld1);
+    
+    g.run(null, function(){
+        equal(buff.join(''), 'Hello, world.', 'Got hello world');
+        start();
+    });
+});
+
+asyncTest('Hello world2', function() {
+    var buff = [],
+        g =  Γ({
+            output: function(s) {
+                buff.push(s);         
+            },
+            input: function(f){
+                console.log('Input was called');
+                f(-1);
+            },
+            invertInOut: true
+        });
+    
+    g.load(helloWorld1);
+    
+    g.run(null, function(){
+        equal(buff.join(''), 'Hello, world.', 'Got hello world');
+        start();
+    });
+});
+
+/*
+asyncTest("cat aka echo", function() {
+    var buff = [],
+        str = "Hi in there!",
+        
+        g =  Γ({
+            output: function(s) {
+                console.log('out: ' + s);
+                buff.push(s);         
+            },
+            input: function(f){
+                console.log('Input was called');
+                f(-1);
+            },
+            invertInOut: true
+        });
+    
+    
+});
+*/
